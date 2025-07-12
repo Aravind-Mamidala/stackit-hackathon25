@@ -6,7 +6,8 @@ const {
   getQuestions,
   getQuestion,
   updateQuestion,
-  deleteQuestion
+  deleteQuestion,
+  voteQuestion
 } = require('../controllers/questionController');
 
 const router = express.Router();
@@ -37,6 +38,12 @@ const questionValidation = [
     })
 ];
 
+const voteValidation = [
+  body('vote')
+    .isIn([-1, 0, 1])
+    .withMessage('Vote must be -1 (downvote), 0 (remove vote), or 1 (upvote)')
+];
+
 // Public routes (optional auth for user vote info)
 router.get('/', optionalAuth, getQuestions);
 router.get('/:id', optionalAuth, getQuestion);
@@ -45,5 +52,6 @@ router.get('/:id', optionalAuth, getQuestion);
 router.post('/', authenticateToken, questionValidation, createQuestion);
 router.put('/:id', authenticateToken, questionValidation, updateQuestion);
 router.delete('/:id', authenticateToken, deleteQuestion);
+router.post('/:id/vote', authenticateToken, voteValidation, voteQuestion);
 
 module.exports = router; 

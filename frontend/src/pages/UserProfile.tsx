@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { mockAxios } from '../services/mockApi'
+import api from '../services/api'
 import { MessageSquare, ThumbsUp, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -18,7 +18,7 @@ export function UserProfile() {
 
   const fetchUserProfile = async () => {
     try {
-          const response = await mockAxios.get(`/api/users/${id}`)
+          const response = await api.get(`/users/${id}`)
     if ('user' in response.data && 'questions' in response.data && 'answers' in response.data) {
       setUser(response.data.user)
       setQuestions(response.data.questions)

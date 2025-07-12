@@ -1,12 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { mockAxios } from '../services/mockApi'
+import api from '../services/api'
 
 export interface User {
-  id: number
+  _id: string
   username: string
   email: string
   role: string
   reputation: number
+  avatar?: string
+  bio?: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 interface AuthContextType {
@@ -33,66 +38,77 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user')
+    return savedUser ? JSON.parse(savedUser) : null
+  })
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [loading, setLoading] = useState(true)
 
-  // Set up mock API defaults
-  useEffect(() => {
-    // Mock API handles authentication internally
-  }, [token])
-
-  // Check if user is authenticated on mount
+  // Always refresh user profile on mount or token change
   useEffect(() => {
     const checkAuth = async () => {
       if (token) {
         try {
-          const response = await mockAxios.get('/api/auth/me')
-          // Type guard to ensure we have the right response type
-          if ('user' in response.data && !('questions' in response.data)) {
-            setUser(response.data.user)
+          const response = await api.get('/auth/profile')
+          if (response.data.success) {
+            const userData = response.data.data.user
+            setUser(userData)
+            localStorage.setItem('user', JSON.stringify(userData))
+          } else {
+            // If backend says not success, force logout
+            setUser(null)
+            setToken(null)
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
           }
         } catch (error) {
-          console.error('Auth check failed:', error)
-          localStorage.removeItem('token')
+          // On any error, force logout
+          setUser(null)
           setToken(null)
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
         }
+      } else {
+        setUser(null)
+        setToken(null)
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
       }
       setLoading(false)
     }
-
     checkAuth()
   }, [token])
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await mockAxios.post('/api/auth/login', { email, password })
-      // Type guard to ensure we have auth response
-      if ('user' in response.data && 'token' in response.data && !('question' in response.data)) {
-        const { user: userData, token: authToken } = response.data
+      const response = await api.post('/auth/login', { email, password })
+      if (response.data.success && response.data.data.token) {
+        const { user: userData, token: authToken } = response.data.data
         
         setUser(userData)
         setToken(authToken)
         localStorage.setItem('token', authToken)
+        localStorage.setItem('user', JSON.stringify(userData))
       }
     } catch (error: any) {
-      throw new Error(error.message || 'Login failed')
+      throw new Error(error.response?.data?.message || error.message || 'Login failed')
     }
   }
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      const response = await mockAxios.post('/api/auth/register', { username, email, password })
-      // Type guard to ensure we have auth response
-      if ('user' in response.data && 'token' in response.data && !('question' in response.data)) {
-        const { user: userData, token: authToken } = response.data
+      const response = await api.post('/auth/register', { username, email, password })
+      if (response.data.success && response.data.data.token) {
+        const { user: userData, token: authToken } = response.data.data
         
         setUser(userData)
         setToken(authToken)
         localStorage.setItem('token', authToken)
+        localStorage.setItem('user', JSON.stringify(userData))
       }
     } catch (error: any) {
-      throw new Error(error.message || 'Registration failed')
+      throw new Error(error.response?.data?.message || error.message || 'Registration failed')
     }
   }
 
@@ -100,6 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null)
     setToken(null)
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   const value = {

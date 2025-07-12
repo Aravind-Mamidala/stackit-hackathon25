@@ -17,10 +17,14 @@ export function Login() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      navigate('/')
+      const result = await login(email, password)
+      if (result.success) {
+        navigate('/')
+      } else {
+        setError(result.error || 'Login failed')
+      }
     } catch (error: any) {
-      setError(error.message)
+      setError(error.message || 'Login failed')
     } finally {
       setLoading(false)
     }

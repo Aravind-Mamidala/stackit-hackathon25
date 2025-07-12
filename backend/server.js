@@ -12,6 +12,7 @@ const questionRoutes = require('./routes/questionRoutes');
 const answerRoutes = require('./routes/answerRoutes');
 const voteRoutes = require('./routes/voteRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Create Express app
 const app = express();
@@ -20,7 +21,7 @@ const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://your-frontend-domain.com'] 
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173'],
   credentials: true
 }));
 
@@ -49,6 +50,7 @@ app.use('/api/questions', questionRoutes);
 app.use('/api', answerRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

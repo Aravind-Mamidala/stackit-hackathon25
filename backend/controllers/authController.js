@@ -12,8 +12,11 @@ const generateToken = (userId) => {
 // Register new user
 const register = async (req, res) => {
   try {
+    console.log('🔐 Registration attempt:', { username: req.body.username, email: req.body.email });
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
@@ -29,6 +32,7 @@ const register = async (req, res) => {
     });
 
     if (existingUser) {
+      console.log('❌ User already exists:', { email, username });
       return res.status(400).json({
         success: false,
         message: 'User with this email or username already exists'
@@ -44,6 +48,7 @@ const register = async (req, res) => {
     });
 
     await user.save();
+    console.log('✅ User created successfully:', { id: user._id, username: user.username, email: user.email });
 
     // Generate token
     const token = generateToken(user._id);
@@ -57,7 +62,7 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error('❌ Register error:', error);
     res.status(500).json({
       success: false,
       message: 'Registration failed',
@@ -69,8 +74,11 @@ const register = async (req, res) => {
 // Login user
 const login = async (req, res) => {
   try {
+    console.log('🔐 Login attempt:', { email: req.body.email });
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
@@ -83,14 +91,18 @@ const login = async (req, res) => {
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('❌ User not found:', { email });
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
+    console.log('👤 User found:', { id: user._id, username: user.username, email: user.email });
+
     // Check if user is active
     if (!user.isActive) {
+      console.log('❌ User account deactivated:', { email });
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated'
@@ -99,7 +111,10 @@ const login = async (req, res) => {
 
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
+    console.log('🔑 Password validation result:', { isValid: isPasswordValid });
+    
     if (!isPasswordValid) {
+      console.log('❌ Invalid password for user:', { email });
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -108,6 +123,7 @@ const login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id);
+    console.log('✅ Login successful:', { username: user.username, email: user.email });
 
     res.json({
       success: true,
@@ -118,7 +134,7 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Login failed',

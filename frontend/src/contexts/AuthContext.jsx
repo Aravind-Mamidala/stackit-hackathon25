@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createContext, useContext, useState, useEffect } from 'react'
-import { mockAxios } from '../services/mockApi'
+import api from '../services/api'
 import toast from 'react-hot-toast'
 
 const AuthContext = createContext()
@@ -17,14 +17,21 @@ export function AuthProvider({ children }) {
     // Check if user is logged in on app start
     const token = localStorage.getItem('token')
     if (token) {
-      // Simulate checking token validity
-      setTimeout(() => {
-        const savedUser = localStorage.getItem('user')
-        if (savedUser) {
-          setUser(JSON.parse(savedUser))
-        }
-        setLoading(false)
-      }, 500)
+      // Check token validity with backend
+      api.get('/auth/profile')
+        .then(response => {
+          const userData = response.data.data.user
+          setUser(userData)
+          localStorage.setItem('user', JSON.stringify(userData))
+        })
+        .catch(error => {
+          console.error('Token validation failed:', error)
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+        })
+        .finally(() => {
+          setLoading(false)
+        })
     } else {
       setLoading(false)
     }
@@ -33,10 +40,10 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       setLoading(true)
-      const response = await mockAxios.post('/api/auth/login', { email, password })
+      const response = await api.post('/auth/login', { email, password })
       
-      const userData = response.data.user
-      const token = response.data.token
+      const userData = response.data.data.user
+      const token = response.data.data.token
       
       // Store user data and token
       localStorage.setItem('token', token)
@@ -57,14 +64,14 @@ export function AuthProvider({ children }) {
   const register = async (username, email, password) => {
     try {
       setLoading(true)
-      const response = await mockAxios.post('/api/auth/register', { 
+      const response = await api.post('/auth/register', { 
         username, 
         email, 
         password 
       })
       
-      const userData = response.data.user
-      const token = response.data.token
+      const userData = response.data.data.user
+      const token = response.data.data.token
       
       // Store user data and token
       localStorage.setItem('token', token)
@@ -91,8 +98,8 @@ export function AuthProvider({ children }) {
 
   const updateProfile = async (userData) => {
     try {
-      const response = await mockAxios.put('/api/users/profile', userData)
-      const updatedUser = response.data
+      const response = await api.put('/users/profile', userData)
+      const updatedUser = response.data.data.user
       
       // Update stored user data
       localStorage.setItem('user', JSON.stringify(updatedUser))

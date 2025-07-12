@@ -291,10 +291,80 @@ const deleteQuestion = async (req, res) => {
   }
 };
 
+// Vote on a question
+const voteQuestion = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { vote } = req.body;
+    const userId = req.user._id;
+
+    const question = await Question.findById(id);
+    if (!question || question.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Question not found'
+      });
+    }
+
+    // Check if user is voting on their own question
+    if (question.author.toString() === userId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot vote on your own question'
+      });
+    }
+
+    // Remove existing vote
+    question.votes.upvotes = question.votes.upvotes.filter(
+      voteId => voteId.toString() !== userId.toString()
+    );
+    question.votes.downvotes = question.votes.downvotes.filter(
+      voteId => voteId.toString() !== userId.toString()
+    );
+
+    // Add new vote
+    if (vote === 1) {
+      question.votes.upvotes.push(userId);
+    } else if (vote === -1) {
+      question.votes.downvotes.push(userId);
+    }
+
+    await question.save();
+
+    // Calculate new vote count
+    const voteCount = question.votes.upvotes.length - question.votes.downvotes.length;
+
+    res.json({
+      success: true,
+      message: vote === 0 ? 'Vote removed' : `Vote ${vote > 0 ? 'up' : 'down'} recorded`,
+      data: {
+        voteCount,
+        userVote: vote
+      }
+    });
+  } catch (error) {
+    console.error('Vote question error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to record vote'
+    });
+  }
+};
+
 module.exports = {
   createQuestion,
   getQuestions,
   getQuestion,
   updateQuestion,
-  deleteQuestion
+  deleteQuestion,
+  voteQuestion
 }; 

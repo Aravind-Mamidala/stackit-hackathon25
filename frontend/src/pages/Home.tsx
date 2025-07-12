@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { mockAxios } from '../services/mockApi'
+import api from '../services/api'
 import { 
   MessageSquare, TrendingUp, Clock, Eye, ThumbsUp, Users, Tag, 
   Search, BookOpen, Award, Shield, Zap, Heart, Star, ArrowRight,
@@ -64,13 +64,15 @@ export function Home() {
         sort,
         ...(search && { search })
       })
-      const response = await mockAxios.get(`/api/questions?${params}`)
+      const response = await api.get(`/questions?${params}`)
       
-      if (response.data && response.data.questions) {
-        setQuestions(response.data.questions)
-        setPagination(response.data.pagination)
+      if (response.data && (response.data.data?.questions || response.data.questions)) {
+        const questions = response.data.data?.questions || response.data.questions
+        const pagination = response.data.data?.pagination || response.data.pagination
+        setQuestions(questions)
+        setPagination(pagination)
         if (pageToFetch === 1) {
-          toast.success(`Found ${response.data.questions.length} questions!`)
+          toast.success(`Found ${questions.length} questions!`)
         }
       } else {
         setQuestions([])

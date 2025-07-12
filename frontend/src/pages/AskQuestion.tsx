@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockAxios } from '../services/mockApi'
+import api from '../services/api'
 import { AlertCircle, Tag, X, ChevronDown, Sparkles, Lightbulb, BookOpen } from 'lucide-react'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { motion } from 'framer-motion'
@@ -38,14 +38,15 @@ export function AskQuestion() {
     setLoading(true)
 
     try {
-      const response = await mockAxios.post('/api/questions', {
+      const response = await api.post('/questions', {
         title,
-        content,
+        description: content,
         tags: tags.map(tag => tag.name)
       })
       
       toast.success('Question posted successfully! 🎉')
-      navigate(`/questions/${response.data.id}`)
+      const questionId = response.data.data?.question?._id || response.data.question?._id || response.data.id
+      navigate(`/questions/${questionId}`)
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Failed to create question'
       setError(errorMessage)

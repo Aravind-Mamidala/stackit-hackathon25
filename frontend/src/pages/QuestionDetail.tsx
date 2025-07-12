@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { mockAxios } from '../services/mockApi'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { 
@@ -31,13 +31,23 @@ export function QuestionDetail() {
   const fetchQuestion = async () => {
     try {
       setLoading(true)
-      const response = await mockAxios.get(`/api/questions/${id}`)
-      setQuestion(response.data.question)
-      setAnswers(response.data.answers || [])
+      const response = await api.get(`/questions/${id}`)
+      const questionData = response.data.data?.question || response.data.question
+      const answersData = response.data.data?.answers || response.data.answers || []
+      
+      if (!questionData) {
+        toast.error('Question not found')
+        navigate('/')
+        return
+      }
+      
+      setQuestion(questionData)
+      setAnswers(answersData)
       toast.success('Question loaded successfully!')
     } catch (error) {
       console.error('Failed to fetch question:', error)
       toast.error('Failed to load question')
+      navigate('/')
     } finally {
       setLoading(false)
     }
@@ -46,6 +56,7 @@ export function QuestionDetail() {
   const handleVote = async (voteType) => {
     if (!user) {
       toast.error('Please login to vote')
+      navigate('/login')
       return
     }
 
@@ -53,15 +64,25 @@ export function QuestionDetail() {
       const newVote = userVote === voteType ? 0 : voteType
       setUserVote(newVote)
       
+      // Call the voting API with the correct format
+      const response = await api.post(`/questions/${id}/vote`, { vote: newVote })
+      
       // Update question votes
       setQuestion(prev => ({
         ...prev,
-        votes: prev.votes + (newVote - userVote)
+        voteCount: response.data.data?.voteCount || (prev.voteCount || 0) + (newVote - userVote)
       }))
       
       toast.success(newVote === 0 ? 'Vote removed' : `Vote ${newVote > 0 ? 'up' : 'down'} recorded`)
     } catch (error) {
-      toast.error('Failed to record vote')
+      console.error('Voting error:', error)
+      if (error.response?.status === 401) {
+        toast.error('Please login to vote')
+        navigate('/login')
+      } else {
+        const errorMessage = error.response?.data?.message || 'Failed to record vote'
+        toast.error(errorMessage)
+      }
       setUserVote(userVote) // Revert on error
     }
   }
@@ -73,18 +94,31 @@ export function QuestionDetail() {
       return
     }
 
+    if (!user) {
+      toast.error('Please login to answer')
+      navigate('/login')
+      return
+    }
+
     try {
       setSubmitting(true)
-      const response = await mockAxios.post(`/api/questions/${id}/answers`, {
+      const response = await api.post(`/questions/${id}/answers`, {
         content: answerContent
       })
       
-      setAnswers([...answers, response.data])
+      const newAnswer = response.data.data?.answer || response.data.answer || response.data
+      setAnswers([...answers, newAnswer])
       setAnswerContent('')
       setShowAnswerForm(false)
       toast.success('Answer posted successfully! 🎉')
     } catch (error) {
+      console.error('Answer submission error:', error)
+      if (error.response?.status === 401) {
+        toast.error('Please login to answer')
+        navigate('/login')
+      } else {
       toast.error('Failed to post answer')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -92,12 +126,12 @@ export function QuestionDetail() {
 
   const handleAcceptAnswer = async (answerId) => {
     try {
-      await mockAxios.put(`/api/questions/${id}/answers/${answerId}/accept`)
+      await api.patch(`/answers/${answerId}/accept`)
       setAnswers(answers.map(answer => ({
         ...answer,
-        is_accepted: answer.id === answerId
+        isAccepted: answer._id === answerId
       })))
-      setQuestion(prev => ({ ...prev, is_answered: true }))
+      setQuestion(prev => ({ ...prev, acceptedAnswer: answerId }))
       toast.success('Answer accepted! ✅')
     } catch (error) {
       toast.error('Failed to accept answer')
@@ -108,7 +142,7 @@ export function QuestionDetail() {
     if (!confirm('Are you sure you want to delete this question?')) return
     
     try {
-      await mockAxios.delete(`/api/questions/${id}`)
+      await api.delete(`/questions/${id}`)
       toast.success('Question deleted successfully')
       navigate('/')
     } catch (error) {
@@ -160,7 +194,7 @@ export function QuestionDetail() {
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <div className="flex items-center space-x-1">
                 <Clock size={14} />
-                <span>Asked {formatDistanceToNow(new Date(question.created_at), { addSuffix: true })}</span>
+                <span>Asked {formatDistanceToNow(new Date(question.createdAt), { addSuffix: true })}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Eye size={14} />
@@ -183,7 +217,7 @@ export function QuestionDetail() {
             <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
               <Flag size={16} />
             </button>
-            {user && user.id === question.user_id && (
+            {user && user._id === question.author?._id && (
               <>
                 <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
                   <Edit size={16} />
@@ -208,7 +242,7 @@ export function QuestionDetail() {
                 className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 border border-primary-300 hover:from-primary-200 hover:to-primary-300 transition-all duration-200"
               >
                 <Tag size={12} className="mr-1" />
-                {tag.name}
+                {typeof tag === 'string' ? tag : tag.name}
               </span>
             ))}
           </div>
@@ -237,7 +271,7 @@ export function QuestionDetail() {
               <ThumbsUp size={20} />
             </motion.button>
             
-            <span className="text-xl font-bold text-gray-900">{question.votes}</span>
+            <span className="text-xl font-bold text-gray-900">{question.voteCount || 0}</span>
             
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -257,7 +291,7 @@ export function QuestionDetail() {
           <div className="flex-1">
             <div 
               className="prose max-w-none mb-6"
-              dangerouslySetInnerHTML={{ __html: question.content }}
+              dangerouslySetInnerHTML={{ __html: question.description }}
             />
             
             {/* Author Info */}
@@ -265,21 +299,21 @@ export function QuestionDetail() {
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-full flex items-center justify-center">
                   <span className="text-white font-bold text-sm">
-                    {question.username.charAt(0).toUpperCase()}
+                    {(question.author?.username || 'Anonymous').charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div>
-                  <Link 
-                    to={`/users/${question.user_id}`}
+                  <a 
+                    href={`/users/${question.author?._id}`}
                     className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
                   >
-                    {question.username}
-                  </Link>
-                  <p className="text-sm text-gray-500">Reputation: {question.reputation}</p>
+                    {question.author?.username || 'Anonymous'}
+                  </a>
+                  <p className="text-sm text-gray-500">Reputation: {question.author?.reputation || 0}</p>
                 </div>
               </div>
               
-              {question.is_answered && (
+              {question.acceptedAnswer && (
                 <div className="flex items-center space-x-1 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
                   <CheckCircle size={14} />
                   <span>Solved</span>
@@ -356,12 +390,12 @@ export function QuestionDetail() {
         <div className="space-y-6">
           {answers.map((answer, index) => (
             <motion.div
-              key={answer.id}
+              key={answer._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={`card p-6 shadow-lg border-0 ${
-                answer.is_accepted ? 'ring-2 ring-green-500 bg-green-50' : ''
+                answer.isAccepted ? 'ring-2 ring-green-500 bg-green-50' : ''
               }`}
             >
               <div className="flex space-x-6">
@@ -370,7 +404,7 @@ export function QuestionDetail() {
                   <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
                     <ThumbsUp size={20} />
                   </button>
-                  <span className="text-xl font-bold text-gray-900">{answer.votes}</span>
+                  <span className="text-xl font-bold text-gray-900">{answer.voteCount || 0}</span>
                   <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
                     <ThumbsDown size={20} />
                   </button>
@@ -394,25 +428,25 @@ export function QuestionDetail() {
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
                         <span className="text-white font-bold text-xs">
-                          {answer.username.charAt(0).toUpperCase()}
+                          {(answer.author?.username || 'Anonymous').charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div>
-                        <Link 
-                          to={`/users/${answer.user_id}`}
+                        <a 
+                          href={`/users/${answer.author?._id}`}
                           className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
                         >
-                          {answer.username}
-                        </Link>
+                          {answer.author?.username || 'Anonymous'}
+                        </a>
                         <p className="text-sm text-gray-500">
-                          {formatDistanceToNow(new Date(answer.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(answer.createdAt), { addSuffix: true })}
                         </p>
                       </div>
                     </div>
                     
-                    {user && user.id === question.user_id && !question.is_answered && (
+                    {user && user._id === question.author?._id && !question.acceptedAnswer && (
                       <button
-                        onClick={() => handleAcceptAnswer(answer.id)}
+                        onClick={() => handleAcceptAnswer(answer._id)}
                         className="flex items-center space-x-1 bg-green-100 text-green-800 px-3 py-1 rounded-lg hover:bg-green-200 transition-colors"
                       >
                         <CheckCircle size={14} />

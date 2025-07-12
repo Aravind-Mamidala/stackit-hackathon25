@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockAxios } from '../services/mockApi'
+import { useAuth } from '../contexts/AuthContext'
 import { AlertCircle } from 'lucide-react'
 
 export function Register() {
@@ -9,20 +9,20 @@ export function Register() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { register } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+    
     try {
-      const response = await mockAxios.post('/api/auth/register', {
-        username,
-        email,
-        password
-      })
-      if ('user' in response.data) {
-        navigate('/login')
+      const result = await register(username, email, password)
+      if (result.success) {
+        navigate('/')
+      } else {
+        setError(result.error || 'Registration failed')
       }
     } catch (error: any) {
       setError(error.message || 'Registration failed')

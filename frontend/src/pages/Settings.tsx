@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { mockAxios } from '../services/mockApi'
+import api from '../services/api'
 import { AlertCircle, User, Mail, Camera, Save, X } from 'lucide-react'
 
 export function Settings() {
@@ -69,7 +69,7 @@ export function Settings() {
 
     try {
       // In a real app, you'd upload the avatar first, then update the profile
-      const response = await mockAxios.put('/api/users/profile', {
+      const response = await api.put('/users/profile', {
         username: formData.username,
         email: formData.email,
         bio: formData.bio,

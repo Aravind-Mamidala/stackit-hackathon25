@@ -10,30 +10,11 @@ import { QuestionDetail } from './pages/QuestionDetail'
 import { UserProfile } from './pages/UserProfile'
 import { Settings } from './pages/Settings'
 import { Tags } from './pages/Tags'
+import { Trending } from './pages/Trending'
+import { UsersPage } from './pages/Users'
+import { Help } from './pages/Help'
 import { Admin } from './pages/Admin'
 import { ProtectedRoute } from './components/ProtectedRoute'
-
-// Dummy components for new routes
-const Trending = () => (
-  <div className="max-w-4xl mx-auto text-center py-12">
-    <h1 className="text-3xl font-bold text-gray-900 mb-4">Trending Questions</h1>
-    <p className="text-gray-600">Coming soon! This will show the most popular questions.</p>
-  </div>
-)
-
-const Users = () => (
-  <div className="max-w-4xl mx-auto text-center py-12">
-    <h1 className="text-3xl font-bold text-gray-900 mb-4">Top Users</h1>
-    <p className="text-gray-600">Coming soon! This will show the most active users.</p>
-  </div>
-)
-
-const Help = () => (
-  <div className="max-w-4xl mx-auto text-center py-12">
-    <h1 className="text-3xl font-bold text-gray-900 mb-4">Help Center</h1>
-    <p className="text-gray-600">Coming soon! This will provide help and documentation.</p>
-  </div>
-)
 
 function App() {
   return (
@@ -50,7 +31,7 @@ function App() {
               <Route path="/users/:id" element={<UserProfile />} />
               <Route path="/tags" element={<Tags />} />
               <Route path="/trending" element={<Trending />} />
-              <Route path="/users" element={<Users />} />
+              <Route path="/users" element={<UsersPage />} />
               <Route path="/help" element={<Help />} />
               <Route 
                 path="/ask" 

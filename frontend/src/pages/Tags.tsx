@@ -1,60 +1,98 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Tag, TrendingUp, Users, MessageSquare } from 'lucide-react'
+import api from '../services/api'
+import { Tag, MessageSquare, TrendingUp, Clock, Eye, ThumbsUp } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 
+interface TagData {
+  name: string
+  count: number
+  questions: any[]
+}
+
 export function Tags() {
-  const [tags, setTags] = useState([])
+  const [tags, setTags] = useState<TagData[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState('popular')
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [questions, setQuestions] = useState<any[]>([])
+  const [questionsLoading, setQuestionsLoading] = useState(false)
 
   useEffect(() => {
-    // Simulate loading tags
-    setTimeout(() => {
-      const mockTags = [
-        { name: 'react', count: 1250, questions: 890, followers: 2340 },
-        { name: 'javascript', count: 2100, questions: 1567, followers: 3456 },
-        { name: 'typescript', count: 890, questions: 567, followers: 1234 },
-        { name: 'nodejs', count: 756, questions: 432, followers: 987 },
-        { name: 'python', count: 1100, questions: 789, followers: 1678 },
-        { name: 'vue', count: 456, questions: 234, followers: 567 },
-        { name: 'angular', count: 345, questions: 189, followers: 432 },
-        { name: 'mongodb', count: 678, questions: 345, followers: 789 },
-        { name: 'postgresql', count: 432, questions: 234, followers: 456 },
-        { name: 'docker', count: 567, questions: 298, followers: 654 },
-        { name: 'kubernetes', count: 234, questions: 123, followers: 345 },
-        { name: 'aws', count: 789, questions: 456, followers: 890 },
-        { name: 'testing', count: 345, questions: 198, followers: 432 },
-        { name: 'api', count: 567, questions: 345, followers: 678 },
-        { name: 'security', count: 234, questions: 123, followers: 345 }
-      ]
-      setTags(mockTags)
-      setLoading(false)
-      toast.success('Tags loaded successfully!')
-    }, 1000)
+    fetchTags()
   }, [])
 
-  const sortedTags = [...tags].sort((a, b) => {
-    switch (sortBy) {
-      case 'popular':
-        return b.count - a.count
-      case 'questions':
-        return b.questions - a.questions
-      case 'followers':
-        return b.followers - a.followers
-      case 'name':
-        return a.name.localeCompare(b.name)
-      default:
-        return b.count - a.count
+  useEffect(() => {
+    if (selectedTag) {
+      fetchQuestionsByTag(selectedTag)
     }
-  })
+  }, [selectedTag])
+
+  const fetchTags = async () => {
+    try {
+      setLoading(true)
+      const response = await api.get('/questions')
+      const allQuestions = response.data.data?.questions || response.data.questions || []
+      
+      // Extract unique tags and count questions
+      const tagCounts: { [key: string]: number } = {}
+      allQuestions.forEach((question: any) => {
+        if (question.tags) {
+          question.tags.forEach((tag: any) => {
+            const tagName = typeof tag === 'string' ? tag : tag.name
+            tagCounts[tagName] = (tagCounts[tagName] || 0) + 1
+          })
+        }
+      })
+      
+      const tagsData = Object.entries(tagCounts).map(([name, count]) => ({
+        name,
+        count,
+        questions: allQuestions.filter((q: any) => 
+          q.tags && q.tags.some((t: any) => (typeof t === 'string' ? t : t.name) === name)
+        )
+      }))
+      
+      setTags(tagsData.sort((a, b) => b.count - a.count))
+      toast.success(`Found ${tagsData.length} tags!`)
+    } catch (error) {
+      console.error('Failed to fetch tags:', error)
+      toast.error('Failed to load tags')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchQuestionsByTag = async (tagName: string) => {
+    try {
+      setQuestionsLoading(true)
+      const response = await api.get(`/questions?tag=${encodeURIComponent(tagName)}`)
+      setQuestions(response.data.data?.questions || response.data.questions || [])
+    } catch (error) {
+      console.error('Failed to fetch questions by tag:', error)
+      toast.error('Failed to load questions for this tag')
+    } finally {
+      setQuestionsLoading(false)
+    }
+  }
+
+  const handleTagClick = (tagName: string) => {
+    setSelectedTag(tagName)
+  }
+
+  const clearSelection = () => {
+    setSelectedTag(null)
+    setQuestions([])
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading tags...</p>
+        </div>
       </div>
     )
   }
@@ -65,134 +103,132 @@ export function Tags() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        className="mb-8"
       >
-        <div className="flex items-center justify-center mb-4">
-          <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.6 }}
-            className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl flex items-center justify-center shadow-lg mr-4"
-          >
-            <Tag className="text-white" size={32} />
-          </motion.div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Tags</h1>
+            <p className="text-gray-600">
+              Browse questions by topic and technology
+            </p>
+          </div>
+          {selectedTag && (
+            <button
+              onClick={clearSelection}
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
+              ← Back to all tags
+            </button>
+          )}
         </div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent mb-2">
-          Popular Tags
-        </h1>
-        <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-          Discover the most popular tags and topics in our community. 
-          Find questions by technology, framework, or topic.
-        </p>
       </motion.div>
 
-      {/* Sort Controls */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <div className="flex flex-wrap items-center justify-between bg-white rounded-xl p-4 shadow-lg border border-gray-200">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700">Sort by:</span>
-            <div className="flex space-x-1">
-              {[
-                { key: 'popular', label: 'Popular', icon: TrendingUp },
-                { key: 'questions', label: 'Questions', icon: MessageSquare },
-                { key: 'followers', label: 'Followers', icon: Users },
-                { key: 'name', label: 'Name', icon: Tag }
-              ].map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setSortBy(key)}
-                  className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                    sortBy === key
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+      {selectedTag ? (
+        /* Questions by Tag */
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Questions tagged "{selectedTag}"
+            </h2>
+            <p className="text-gray-600">
+              {questions.length} question{questions.length !== 1 ? 's' : ''} found
+            </p>
+          </div>
+
+          {questionsLoading ? (
+            <div className="flex items-center justify-center min-h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {questions.map((question) => (
+                <motion.div
+                  key={question._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="card p-6 hover:shadow-lg transition-shadow"
                 >
-                  <Icon size={14} />
-                  <span>{label}</span>
-                </button>
+                  <Link 
+                    to={`/questions/${question._id}`}
+                    className="block"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 hover:text-primary-600 mb-2">
+                      {question.title}
+                    </h3>
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex items-center space-x-1">
+                        <ThumbsUp size={14} />
+                        <span>{question.voteCount || 0}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <MessageSquare size={14} />
+                        <span>{question.answerCount || 0}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Eye size={14} />
+                        <span>{question.views}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Clock size={14} />
+                        <span>{new Date(question.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
               ))}
-            </div>
-          </div>
-          <div className="text-sm text-gray-500">
-            {tags.length} tags found
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Tags Grid */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
-        {sortedTags.map((tag, index) => (
-          <motion.div
-            key={tag.name}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ y: -5, scale: 1.02 }}
-            className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-200"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <Link 
-                to={`/?tag=${tag.name}`}
-                className="flex items-center space-x-2 group"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                  <Tag className="text-white" size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
-                    {tag.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {tag.count.toLocaleString()} questions
+              
+              {questions.length === 0 && (
+                <div className="text-center py-12">
+                  <Tag size={64} className="mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No questions found</h3>
+                  <p className="text-gray-600 mb-6">
+                    No questions are tagged with "{selectedTag}" yet.
                   </p>
+                  <Link 
+                    to="/ask" 
+                    className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    Ask a Question
+                  </Link>
                 </div>
-              </Link>
+              )}
             </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Questions</span>
-                <span className="font-semibold text-gray-900">{tag.questions.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Followers</span>
-                <span className="font-semibold text-gray-900">{tag.followers.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">This week</span>
-                <span className="font-semibold text-green-600">+{Math.floor(Math.random() * 50) + 5}</span>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <Link
-                to={`/?tag=${tag.name}`}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-2 px-4 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 text-center block font-medium"
-              >
-                View Questions
-              </Link>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Empty State */}
-      {tags.length === 0 && (
-        <motion.div 
+          )}
+        </motion.div>
+      ) : (
+        /* All Tags Grid */
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
         >
-          <Tag size={64} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No tags found</h3>
-          <p className="text-gray-600">Be the first to create a tag!</p>
+          {tags.map((tag, index) => (
+            <motion.div
+              key={tag.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="card p-6 cursor-pointer hover:shadow-lg transition-all duration-200"
+              onClick={() => handleTagClick(tag.name)}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center">
+                    <Tag className="text-primary-600" size={20} />
+                  </div>
+                  <span className="font-semibold text-gray-900">{tag.name}</span>
+                </div>
+                <span className="text-sm text-gray-500">{tag.count}</span>
+              </div>
+              <p className="text-sm text-gray-600">
+                {tag.count} question{tag.count !== 1 ? 's' : ''}
+              </p>
+            </motion.div>
+          ))}
         </motion.div>
       )}
     </div>
