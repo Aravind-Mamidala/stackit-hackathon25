@@ -1,0 +1,29 @@
+{
+  "name": "stackit",
+  "version": "1.0.0",
+  "description": "A minimal Q&A forum platform for collaborative learning",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev"
+  },
+  "keywords": [
+    "qa",
+    "forum",
+    "stackoverflow",
+    "questions",
+    "answers",
+    "community"
+  ],
+  "author": "StackIt Team",
+  "license": "MIT",
+  "dependencies": {
+    "autoprefixer": "^10.4.21",
+    "lucide-react": "^0.525.0",
+    "postcss": "^8.5.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-quill": "^2.0.0",
+    "react-router-dom": "^7.6.3",
+    "tailwindcss": "^4.1.11"
+  }
+}
